@@ -73,8 +73,6 @@ class Control:
         self.bombs = pygame.sprite.Group()
         self.players = pygame.sprite.Group()
 
-        self.level = Level('assets/classic.tmx', self)
-
     def load_level(self, tmx_file):
         # remove old sprites
         self.blocs.empty()
