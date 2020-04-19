@@ -15,34 +15,6 @@ PLAYER_MAX_BOMBS = 5
 BOMB_TIMER = 5
 
 
-class Level:
-    def __init__(self, tmx_file, ctrl):
-        self.ctrl = ctrl
-        tmx_data = pytmx.util_pygame.load_pygame(tmx_file)
-
-        self.map_w, self.map_h = tmx_data.width, tmx_data.height
-        self.tile_w, self.tile_h = tmx_data.tilewidth, tmx_data.tileheight
-
-        self.imgs = tmx_data.images
-        self.props = tmx_data.tile_properties
-        self.tiles = tmx_data.layernames['blocks'].data
-
-        self.make_sprites()
-
-    def make_sprites(self):
-        for x in range(self.map_w):
-            for y in range(self.map_h):
-                gid = self.tiles[x][y]
-
-                sp = pygame.sprite.DirtySprite()
-                sp.image = self.imgs[gid]
-                sp.rect = sp.image.get_rect()
-                sp.rect.x, sp.rect.y = x * self.tile_w, y * self.tile_h
-                sp.add(self.ctrl.blocs)
-                if self.props[gid].get('blocking', 0):
-                    sp.add(self.ctrl.solid_blocs)
-
-
 class Player(pygame.sprite.Sprite):
     def __init__(self, position, velocity, image):
         pygame.sprite.Sprite.__init__(self)
@@ -69,7 +41,7 @@ class Player(pygame.sprite.Sprite):
         # objects ?
 
 class Bomb(pygame.sprite.Sprite):
-    def __init__(self, position, image):
+     def __init__(self, position, image):
         pygame.sprite.Sprite.__init__(self)
 
         # For rendering
@@ -102,7 +74,36 @@ class Control:
         self.players = pygame.sprite.Group()
 
         self.level = Level('assets/classic.tmx', self)
-    
+
+    def load_level(self, tmx_file):
+        # remove old sprites
+        self.blocs.empty()
+        self.solid_blocs.empty()
+
+        tmx_data = pytmx.util_pygame.load_pygame(tmx_file)
+        tiles = tmx_data.layernames['blocks'].data
+
+        # store some stuff
+        self.tileimgs = tmx_data.images
+        self.tileprops = tmx_data.tile_properties
+        self.map_w, self.map_h = tmx_data.width, tmx_data.height
+        self.tile_w, self.tile_h = tmx_data.tilewidth, tmx_data.tileheight
+
+        self.screen = pygame.display.set_mode((self.map_w * self.tile_w, self.map_h * self.tile_h))
+
+        for x in range(self.map_w):
+            for y in range(self.map_h):
+                gid = tiles[x][y]
+
+                sp = pygame.sprite.DirtySprite()
+                sp.image = self.tileimgs[gid]
+                sp.rect = sp.image.get_rect()
+                sp.rect.x, sp.rect.y = x * self.tile_w, y * self.tile_h
+
+                self.blocs.add(sp)
+                if self.tileprops[gid].get('blocking', 0):
+                    self.solid_blocs.add(sp)
+
     def loop(self):
         while self.running:
             delta_t = self.clock.tick(FRAME_RATE)
@@ -126,5 +127,6 @@ class Control:
 if __name__ == '__main__':
     pygame.init()
     CONTROL = Control()
+    CONTROL.load_level('assets/classic.tmx')
     CONTROL.loop()
     pygame.quit()
