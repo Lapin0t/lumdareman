@@ -161,12 +161,16 @@ class Control:
                     self.running = 0
                 elif ev.type == KEYDOWN and ev.key in PLAYER_CONTROLLER['UP']:
                     player.velocity = Vector2(0, -speed)
+                    player.direction = Direction.UP
                 elif ev.type == KEYDOWN and ev.key in PLAYER_CONTROLLER['DOWN']:
                     player.velocity = Vector2(0, speed)
+                    player.direction = Direction.DOWN
                 elif ev.type == KEYDOWN and ev.key in PLAYER_CONTROLLER['RIGHT']:
                     player.velocity = Vector2(speed, 0)
+                    player.direction = Direction.RIGHT
                 elif ev.type == KEYDOWN and ev.key in PLAYER_CONTROLLER['LEFT']:
                     player.velocity = Vector2(-speed, 0)
+                    player.direction = Direction.LEFT
 
 
             # state update
