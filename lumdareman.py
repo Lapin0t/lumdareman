@@ -58,7 +58,7 @@ class Player(pygame.sprite.Sprite):
             self.rect.y = self.position.y
         else:
             self.velocity.xy = 0, 0
-        
+
         # TODO: handle the case where player collides with non solid
         # objects ?
 
@@ -99,7 +99,39 @@ class Bomb(pygame.sprite.Sprite):
             # TODO: handle explosion
         else:
             self.timer -= delta_t
-        
+
+class Block(pygame.sprite.DirtySprite):
+    def __init__(self, x, y, gid, img, props, ctrl):
+        super().__init__()
+
+        self.ctrl = ctrl
+        self.gid = gid
+        self.props = props
+
+        self.image = img
+        self.rect = self.image.get_rect()
+        self.rect.x, self.rect.y = x * TILE_X, y * TILE_Y
+
+        ctrl.blocks.add(self)
+        if props.get('blocking', 0):
+            ctrl.solid_blocks.add(self)
+        if props.get('destroyable', 0):
+            ctrl.destr_blocks.add(self)
+
+    def update(self, delta_t):
+        pass
+
+
+def image_at(img, rect):
+    r = pygame.Rect(rect)
+    s = pygame.Surface(r.size).convert()
+    s.blit(img, (0, 0), r)
+    return s
+
+
+def make_sheet(img, ts, ss):
+    print([(x*ts[0], y*ts[1], *ts) for x in range(ss[0]) for y in range(ss[1])])
+    return [image_at(img, (x*ts[0], y*ts[1], *ts)) for y in range(ss[0]) for x in range(ss[1])]
 
 class Control:
     def __init__(self):
@@ -108,8 +140,12 @@ class Control:
         pygame.display.set_caption('LumDareMan')
         self.clock = pygame.time.Clock()
 
+        self.sheet_img = pygame.image.load('assets/tileset_classic.png')
+        self.sheet = make_sheet(self.sheet_img, (32, 32), (8, 8))
+
         self.blocks = pygame.sprite.RenderUpdates()  # opt for dirty tracking
-        self.solid_blocks = pygame.sprite.Group()   # just for collision
+        self.solid_blocks = pygame.sprite.Group()    # just for collision
+        self.destr_blocks = pygame.sprite.Group()
         self.bombs = pygame.sprite.Group()
         self.players = pygame.sprite.Group()
 
@@ -119,32 +155,29 @@ class Control:
         self.solid_blocks.empty()
 
         tmx_data = pytmx.util_pygame.load_pygame(tmx_file)
-        tiles = tmx_data.layernames['blocks'].data
+        map_data = tmx_data.layernames['blocks'].data
+
+        global tmx
+        tmx = tmx_data
 
         # store some stuff
-        self.tileimgs = tmx_data.images
-        self.tileprops = tmx_data.tile_properties
+        #self.tileimgs = tmx_data.images
+        #self.tileprops = tmx_data.tile_properties
         self.map_w, self.map_h = tmx_data.width, tmx_data.height
-        self.tile_w, self.tile_h = tmx_data.tilewidth, tmx_data.tileheight
+        #self.tile_w, self.tile_h = tmx_data.tilewidth, tmx_data.tileheight
 
-        self.screen = pygame.display.set_mode((self.map_w * self.tile_w, self.map_h * self.tile_h))
+        self.screen = pygame.display.set_mode((self.map_w * TILE_X, self.map_h * TILE_Y))
 
         for x in range(self.map_w):
             for y in range(self.map_h):
-                gid = tiles[x][y]
+                gid = map_data[x][y]
+                real_gid = tmx_data.tiledgidmap[gid] - 1
 
-                sp = pygame.sprite.DirtySprite()
-                sp.image = self.tileimgs[gid]
-                sp.rect = sp.image.get_rect()
-                sp.rect.x, sp.rect.y = x * self.tile_w, y * self.tile_h
-
-                self.blocks.add(sp)
-                if self.tileprops[gid].get('blocking', 0):
-                    self.solid_blocks.add(sp)
+                Block(x, y, real_gid, self.sheet[real_gid], tmx_data.tile_properties[gid], self)
 
     def loop(self):
 
-        bomberman = self.tileimgs[4] # Whatever, load the good tile someday
+        bomberman = self.sheet[9] # Whatever, load the good tile someday
         player = Player(Vector2(2 * 32, 3 * 32), Vector2(0, 0), bomberman)
 
         self.players.add(player)
@@ -175,6 +208,7 @@ class Control:
 
             # state update
             self.players.update(delta_t)
+
             # rendering
             dirty = self.blocks.draw(self.screen)
             self.bombs.draw(self.screen)
