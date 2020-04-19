@@ -7,7 +7,11 @@
    <property name="blocking" type="bool" value="true"/>
   </properties>
  </tile>
- <tile id="2" type="block"/>
- <tile id="3" type="block"/>
+ <tile id="2" type="block">
+  <properties>
+   <property name="blocking" type="bool" value="true"/>
+  </properties>
+ </tile>
  <tile id="4" type="block"/>
+ <tile id="16" type="block"/>
 </tileset>
