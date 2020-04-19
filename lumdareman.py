@@ -12,6 +12,7 @@ SCREEN_HEIGHT = 600
 FRAME_RATE = 60
 PLAYER_MAX_LIFE = 100
 PLAYER_MAX_BOMBS = 5
+BOMB_TIMER = 5
 
 
 class Level:
@@ -67,6 +68,26 @@ class Player(pygame.sprite.Sprite):
         # TODO: handle the case where player collides with non solid
         # objects ?
 
+class Bomb(pygame.sprite.Sprite):
+    def __init__(self, position, image):
+        pygame.sprite.Sprite.__init__(self)
+
+        # For rendering
+        self.image = image
+        self.rect = self.image.get_rect()
+
+        # Bomb logic
+        self.position = position  # Vector2
+        self.timer = BOMB_TIMER   # seconds until explosion
+
+    def update(self, delta_t):
+        if timer < 0:
+            self.kill()
+            # TODO: handle explosion
+        else:
+            self.timer -= delta_t
+        
+
 
 class Control:
     def __init__(self):
@@ -81,7 +102,7 @@ class Control:
         self.players = pygame.sprite.Group()
 
         self.level = Level('assets/classic.tmx', self)
-
+    
     def loop(self):
         while self.running:
             delta_t = self.clock.tick(FRAME_RATE)
@@ -93,7 +114,7 @@ class Control:
                 elif ev.type == KEYDOWN and ev.key == K_ESCAPE:
                     self.running = 0
 
-            # state update
+             # state update
 
             # rendering
             dirty = self.blocs.draw(self.screen)
