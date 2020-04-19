@@ -63,7 +63,7 @@ class GameState:
 
         self.solid_blocks = pygame.sprite.LayeredUpdates()
         self.sprites = pygame.sprite.LayeredUpdates()
-        self.level = LevelMap('assets/test.tmx')
+        self.level = LevelMap('assets/classic.tmx')
 
     def loop(self):
         while self.running:
@@ -71,6 +71,8 @@ class GameState:
 
             for ev in pygame.event.get():
                 if ev.type == QUIT:
+                    self.running = 0
+                elif ev.type == KEYDOWN and ev.key == K_ESCAPE:
                     self.running = 0
 
             self.sprites.update()
