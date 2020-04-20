@@ -14,6 +14,8 @@ FRAME_RATE = 60
 PLAYER_MAX_LIFE = 100
 PLAYER_MAX_BOMBS = 5
 BOMB_TIMER = 5 # in seconds
+TILE_X = 32
+TILE_Y = 32
 
 
 PLAYER_CONTROLLER = {
@@ -75,13 +77,13 @@ class Player(pygame.sprite.Sprite):
         # objects ?
 
     def plant_bomb(self, image):
-        dx = CONTROL.tile_w
-        dy = CONTROL.tile_h
+        dx = TILE_X
+        dy = TILE_Y
 
         if self.direction == Direction.UP:
-            bomb = Bomb(self.position + pygame.Vector2(0, dx), image)
-        elif self.direction == Direction.DOWN:
             bomb = Bomb(self.position + pygame.Vector2(0, -dx), image)
+        elif self.direction == Direction.DOWN:
+            bomb = Bomb(self.position + pygame.Vector2(0, dx), image)
         elif self.direction == Direction.LEFT:
             bomb = Bomb(self.position + pygame.Vector2(-dy, 0), image)
         elif self.direction == Direction.RIGHT:
