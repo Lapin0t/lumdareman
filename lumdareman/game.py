@@ -2,7 +2,7 @@ import pygame, pytmx
 from pygame.locals import *
 from pygame import Vector2
 
-from lumdareman.config import *
+from lumdareman.data import *
 from lumdareman.blocks import Block
 
 def image_at(img, rect):
@@ -60,14 +60,10 @@ class Control:
 
                 Block(x, y, real_gid, self.sheet[real_gid], tmx_data.tile_properties[gid], self)
 
-    def loop(self):
-
-        bomberman = self.sheet[9] # Whatever, load the good tile someday
-        self.player = Player(bomberman, Vector2(2, 3), 0)
-
+        self.player = Player(self.sheet[9], Vector2(2, 3), 0)
         self.players.add(self.player)
-        speed = .1
 
+    def loop(self):
         while self.running:
             delta_t = self.clock.tick(FRAME_RATE)
             #player.current_input = None
@@ -108,5 +104,5 @@ class Control:
             pygame.display.update(dirty)
 
 
-CONTROL = Control()
 from lumdareman.player import Player
+CONTROL = Control()

@@ -1,8 +1,8 @@
 import pygame
 from pygame import Vector2
 
-from lumdareman.config import *
-from lumdareman.game import CONTROL
+from lumdareman.data import *
+from lumdareman.game import *
 
 
 class Player(pygame.sprite.Sprite):
@@ -172,5 +172,3 @@ class Player(pygame.sprite.Sprite):
 
         if not pygame.sprite.spritecollide(bomb, CONTROL.solid_blocks, False):
             CONTROL.bombs.add(bomb)
-
-

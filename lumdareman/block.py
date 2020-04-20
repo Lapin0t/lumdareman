@@ -2,7 +2,7 @@ import pygame, pytmx
 from pygame.locals import *
 from pygame import Vector2
 
-from lumdareman.config import *
+from lumdareman.data import *
 
 
 class Block(pygame.sprite.DirtySprite):

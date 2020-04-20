@@ -1,7 +1,6 @@
 import pygame
 from pygame import Vector2
 
-from lumdareman.utils import Direction
 from lumdareman.game import CONTROL
 
 BOMB_TIMER = 5 # seconds

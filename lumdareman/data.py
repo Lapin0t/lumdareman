@@ -18,3 +18,15 @@ PLAYER_MAX_LIFE = 100
 PLAYER_MAX_BOMBS = 5
 
 PLAYER_SPEED = 6 * TILE / 1000
+
+BOMB_TIMER = 5 # seconds
+BLAST_TIMER = 2 # seconds
+BLAST_PROPAGATION_TIMER = .2 # seconds
+BLAST_RADIUS = 2
+
+# Useful when we'll have directional explosion
+BLAST_SHEET = {
+    "CENTER"    : CONTROL.sheet[18],
+    "NOT_CENTER": CONTROL.sheet[17]
+}
+
