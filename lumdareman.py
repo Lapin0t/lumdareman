@@ -1,10 +1,13 @@
 #!/usr/bin/env python
 
 import pygame
+from bombs import *
+from utils import *
 from pygame import Vector2
 from pygame.locals import *
 import pytmx
 from math import copysign
+
 
 if not pygame.font: print('Warning, fonts disabled')
 if not pygame.mixer: print('Warning, sound disabled')
@@ -27,16 +30,10 @@ CTRL_DOWN = 1
 CTRL_LEFT = 2
 CTRL_UP = 3
 CTRL_BOMB = 4
-#CONTROLS = [K_RIGHT, K_DOWN, K_LEFT, K_UP, K_SPACE]
-CONTROLS = [K_e, K_o, K_a, K_COMMA, K_SPACE]
+CONTROLS = [K_RIGHT, K_DOWN, K_LEFT, K_UP, K_SPACE]
+#CONTROLS = [K_e, K_o, K_a, K_COMMA, K_SPACE]
 
 
-class Direction:
-    UP = 'UP'
-    DOWN = 'DOWN'
-    LEFT = 'LEFT'
-    RIGHT = 'RIGHT'
-    directions = [UP, DOWN, LEFT, RIGHT]
 
 
 def colliding_tiles(pos, ori, off):
@@ -148,27 +145,6 @@ class Player(pygame.sprite.Sprite):
             CONTROL.bombs.add(bomb)
 
 
-class Bomb(pygame.sprite.Sprite):
-    def __init__(self, position, image):
-        pygame.sprite.Sprite.__init__(self)
-
-        # For rendering
-        self.image = image
-        self.rect = self.image.get_rect()
-        self.rect.x = position.x
-        self.rect.y = position.y
-
-        # Bomb logic
-        self.position = position  # Vector2
-        self.timer = BOMB_TIMER * 1000  # miliseconds until explosion
-
-    def update(self, delta_t):
-        if self.timer < 0:
-            self.kill()
-            # TODO: handle explosion
-        else:
-            self.timer -= delta_t
-
 class Block(pygame.sprite.DirtySprite):
     def __init__(self, x, y, gid, img, props, ctrl):
         super().__init__()
@@ -215,6 +191,7 @@ class Control:
         self.solid_blocks = pygame.sprite.Group()    # just for collision
         self.destr_blocks = pygame.sprite.Group()
         self.bombs = pygame.sprite.Group()
+        self.blasts = pygame.sprite.Group()
         self.players = pygame.sprite.Group()
         self.map = {}
 
@@ -307,9 +284,10 @@ class Control:
             pygame.display.update(dirty)
 
 
+CONTROL = Control()
+
 if __name__ == '__main__':
     pygame.init()
-    CONTROL = Control()
     CONTROL.load_level('assets/classic.tmx')
     CONTROL.loop()
     pygame.quit()
