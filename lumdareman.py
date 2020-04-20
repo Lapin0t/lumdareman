@@ -14,21 +14,22 @@ FRAME_RATE = 60
 PLAYER_MAX_LIFE = 100
 PLAYER_MAX_BOMBS = 5
 BOMB_TIMER = 5 # in seconds
-TILE_X = 32  # maybe avoid hardcoding the tile length
-TILE_Y = 32  # use map coordinates instead
+
 
 PLAYER_CONTROLLER = {
     'UP'   : [K_UP],
     'DOWN' : [K_DOWN],
     'LEFT' : [K_LEFT],
-    'RIGHT': [K_RIGHT]
+    'RIGHT': [K_RIGHT],
+    'PLANT_BOMB' : [K_SPACE]
 }
 
 class Direction:
-    UP = 0
-    DOWN = 3
-    LEFT = 1
-    RIGHT = 2
+    UP = 'UP'
+    DOWN = 'DOWN'
+    LEFT = 'LEFT'
+    RIGHT = 'RIGHT'
+    directions = [UP, DOWN, LEFT, RIGHT]
 
 class Player(pygame.sprite.Sprite):
     def __init__(self, position, velocity, image):
@@ -45,11 +46,22 @@ class Player(pygame.sprite.Sprite):
         self.velocity = velocity  # Vector2
         self.life = PLAYER_MAX_LIFE
         self.bombs = PLAYER_MAX_BOMBS
-        self.direction = Direction.UP # Need to plant bomb in the right direction
+        self.direction = Direction.UP # Needed to plant bomb in the right direction
 
     def update(self, delta_t):
         # Check if player sprites collides with solid objects
         # if so reset velocity, else make the player move accordingly
+        key_states = pygame.key.get_pressed()
+
+        # reinventing sum(...) for lists because python version control on windows sucks
+        tmp = [PLAYER_CONTROLLER[direction] for direction in Direction.directions]
+        directional_keys = []
+        for keys in tmp:
+            directional_keys += keys
+
+        if not any(key_states[key] for key in directional_keys):
+            self.velocity /= 1.5
+        
         moved_player = Player(self.position + self.velocity * delta_t, self.velocity, self.image)
         if not pygame.sprite.spritecollide(moved_player, CONTROL.solid_blocks, False):
             self.position += self.velocity * delta_t
@@ -152,6 +164,7 @@ class Control:
 
         while self.running:
             delta_t = self.clock.tick(FRAME_RATE)
+            player.current_input = None
 
             # event handling
             for ev in pygame.event.get():
@@ -171,15 +184,18 @@ class Control:
                 elif ev.type == KEYDOWN and ev.key in PLAYER_CONTROLLER['LEFT']:
                     player.velocity = Vector2(-speed, 0)
                     player.direction = Direction.LEFT
+                elif ev.type == KEYDOWN and ev.key in PLAYER_CONTROLLER['PLANT_BOMB']:
+                    player.plant_bomb(self.tileimgs[4])
 
 
             # state update
             self.players.update(delta_t)
+            self.bombs.update(delta_t)
+
             # rendering
             dirty = self.blocks.draw(self.screen)
             self.bombs.draw(self.screen)
             self.players.draw(self.screen)
-            print(player.velocity)
             pygame.display.update(dirty)
 
 
