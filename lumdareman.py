@@ -4,27 +4,32 @@ import pygame
 from pygame import Vector2
 from pygame.locals import *
 import pytmx
+from math import copysign
 
 if not pygame.font: print('Warning, fonts disabled')
 if not pygame.mixer: print('Warning, sound disabled')
 
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
-FRAME_RATE = 60
+FRAME_RATE = 40
 PLAYER_MAX_LIFE = 100
 PLAYER_MAX_BOMBS = 5
+
 BOMB_TIMER = 5 # in seconds
-TILE_X = 32
-TILE_Y = 32
 
+BOMB_TIMER = 5
+TILE = 32
 
-PLAYER_CONTROLLER = {
-    'UP'   : [K_UP],
-    'DOWN' : [K_DOWN],
-    'LEFT' : [K_LEFT],
-    'RIGHT': [K_RIGHT],
-    'PLANT_BOMB' : [K_SPACE]
-}
+PLAYER_SPEED = 6 * TILE / 1000
+
+CTRL_RIGHT = 0
+CTRL_DOWN = 1
+CTRL_LEFT = 2
+CTRL_UP = 3
+CTRL_BOMB = 4
+#CONTROLS = [K_RIGHT, K_DOWN, K_LEFT, K_UP, K_SPACE]
+CONTROLS = [K_e, K_o, K_a, K_COMMA, K_SPACE]
+
 
 class Direction:
     UP = 'UP'
@@ -33,52 +38,102 @@ class Direction:
     RIGHT = 'RIGHT'
     directions = [UP, DOWN, LEFT, RIGHT]
 
+
+def colliding_tiles(pos, ori, off):
+    x, y = pos
+   # if ori == CTRL_RIGHT:
+    return {
+            (int((x + TILE - .1) / TILE), int((y + off) / TILE)),
+            (int((x + TILE - .1) / TILE), int((y + TILE - off) / TILE)),
+   #     }
+   # elif ori == CTRL_DOWN:
+   #     return {
+            (int((x + off) / TILE),        int((y + TILE - .1) / TILE)),
+            (int((x + TILE - off) / TILE), int((y + TILE - .1) / TILE)),
+   #     }
+   # elif ori == CTRL_LEFT:
+   #     return {
+            (int((x + .1) / TILE), int((y + off) / TILE)),
+            (int((x + .1) / TILE), int((y + TILE - off)/ TILE)),
+   #     }
+   # elif ori == CTRL_UP:
+   #     return {
+            (int((x + off) / TILE),        int((y + .1) / TILE)),
+            (int((x + TILE - off) / TILE), int((y + .1) / TILE)),
+        }
+
+def colliding_tiles_all(x, y):
+    return {
+        (int((x + .1)        / TILE), int((y + .1)        / TILE)),
+        (int((x + TILE - .1) / TILE), int((y + .1)        / TILE)),
+        (int((x + .1)        / TILE), int((y + TILE - .1) / TILE)),
+        (int((x + TILE - .1) / TILE), int((y + TILE - .1) / TILE)),
+    }
+
+
 class Player(pygame.sprite.Sprite):
-    def __init__(self, position, velocity, image):
+    def __init__(self, image, pos_tile, ori):
         pygame.sprite.Sprite.__init__(self)
 
         # For rendering
         self.image = image
         self.rect = self.image.get_rect()
-        self.rect.x = position.x 
-        self.rect.y = position.y
+        self.rect.x = TILE * pos_tile.x
+        self.rect.y = TILE * pos_tile.y
+
+        self.pos_tile = pos_tile
+        self.pos_frac = Vector2(0., 0.)
 
         # Player logic
-        self.position = position  # Vector2
-        self.velocity = velocity  # Vector2
-        self.life = PLAYER_MAX_LIFE
-        self.bombs = PLAYER_MAX_BOMBS
-        self.direction = Direction.UP # Needed to plant bomb in the right direction
+        self.ori = ori
+
+        self.input_press = [0, 0]  # off/on  (0/1) on axis (x, y)
+        self.input_last = [0, 0]   # fwd/bwd (1/-1) on axis (x, y)
+        self.input_last[ori & 1] = 1 - (ori & 2)
+        self.input_last_ax = ori & 1
+        self.input_bomb = 0
+
+        #self.life = PLAYER_MAX_LIFE
+        #self.bombs = PLAYER_MAX_BOMBS
+        #self.direction = Direction.UP # Needed to plant bomb in the right direction
 
     def update(self, delta_t):
-        # Check if player sprites collides with solid objects
-        # if so reset velocity, else make the player move accordingly
-        key_states = pygame.key.get_pressed()
+        f0, t0 = self._update_ax(delta_t, 0)
+        f1, t1 = self._update_ax(delta_t, 1)
+        self.pos_frac = (f0, f1)
+        self.pos_tile = (t0, t1)
+        self.rect.x = int(TILE * t0 + f0)
+        self.rect.y = int(TILE * t1 + f1)
 
-        # reinventing sum(...) for lists because python version control on windows sucks
-        tmp = [PLAYER_CONTROLLER[direction] for direction in Direction.directions]
-        directional_keys = []
-        for keys in tmp:
-            directional_keys += keys
-
-        if not any(key_states[key] for key in directional_keys):
-            self.velocity /= 1.5
-        
-        moved_player = Player(self.position + self.velocity * delta_t, self.velocity, self.image)
-        if not pygame.sprite.spritecollide(moved_player, CONTROL.solid_blocks, False):
-            self.position += self.velocity * delta_t
-            self.rect = self.image.get_rect()
-            self.rect.x = self.position.x 
-            self.rect.y = self.position.y
+    def _update_ax(self, delta_t, ax):
+        last = self.input_last[ax]
+        frac = self.pos_frac[ax]
+        tile = self.pos_tile[ax]
+        if self.input_press[ax]:
+            d = last
         else:
-            self.velocity.xy = 0, 0
+            if abs(frac) < 2:
+                return 0, tile
+            d = -last if 0 <= self.pos_frac[ax] * last < TILE/4 else last
+        incr = delta_t * PLAYER_SPEED
+        f1 = d * frac + incr
+        if ax == 0:
+            blk = CONTROL.map[(tile + d, self.pos_tile[1])].blocking
+        else:
+            blk = CONTROL.map[(self.pos_tile[0], tile + d)].blocking
+        if f1 > 0 and blk:
+            f1 = d * max(0., d * frac - incr)
+        elif f1 > TILE/2:
+            f1 -= TILE
+            tile += d
+        return d * f1, tile
 
-        # TODO: handle the case where player collides with non solid
-        # objects ?
+
 
     def plant_bomb(self, image):
-        dx = TILE_X
-        dy = TILE_Y
+        dx = TILE
+        dy = TILE
+
 
         if self.direction == Direction.UP:
             bomb = Bomb(self.position + pygame.Vector2(0, -dx), image)
@@ -124,13 +179,12 @@ class Block(pygame.sprite.DirtySprite):
 
         self.image = img
         self.rect = self.image.get_rect()
-        self.rect.x, self.rect.y = x * TILE_X, y * TILE_Y
+        self.rect.x, self.rect.y = x * TILE, y * TILE
 
         ctrl.blocks.add(self)
-        if props.get('blocking', 0):
-            ctrl.solid_blocks.add(self)
-        if props.get('destroyable', 0):
-            ctrl.destr_blocks.add(self)
+        ctrl.map[x,y] = self
+        self.blocking = props.get('blocking', 0)
+        self.destroyable = props.get('destroyable', 0)
 
     def update(self, delta_t):
         pass
@@ -143,9 +197,9 @@ def image_at(img, rect):
     return s
 
 
-def make_sheet(img, ts, ss):
+def make_sheet(img, ts, ss, off=(0,0)):
     print([(x*ts[0], y*ts[1], *ts) for x in range(ss[0]) for y in range(ss[1])])
-    return [image_at(img, (x*ts[0], y*ts[1], *ts)) for y in range(ss[0]) for x in range(ss[1])]
+    return [image_at(img, (off[0] + x*ts[0], off[1] + y*ts[1], *ts)) for y in range(ss[0]) for x in range(ss[1])]
 
 class Control:
     def __init__(self):
@@ -155,18 +209,20 @@ class Control:
         self.clock = pygame.time.Clock()
 
         self.sheet_img = pygame.image.load('assets/tileset_classic.png')
-        self.sheet = make_sheet(self.sheet_img, (32, 32), (8, 8))
+        self.sheet = make_sheet(self.sheet_img, (TILE, TILE), (8, 8))
 
         self.blocks = pygame.sprite.RenderUpdates()  # opt for dirty tracking
         self.solid_blocks = pygame.sprite.Group()    # just for collision
         self.destr_blocks = pygame.sprite.Group()
         self.bombs = pygame.sprite.Group()
         self.players = pygame.sprite.Group()
+        self.map = {}
 
     def load_level(self, tmx_file):
         # remove old sprites
         self.blocks.empty()
         self.solid_blocks.empty()
+        self.map = {}
 
         tmx_data = pytmx.util_pygame.load_pygame(tmx_file)
         map_data = tmx_data.layernames['blocks'].data
@@ -180,7 +236,7 @@ class Control:
         self.map_w, self.map_h = tmx_data.width, tmx_data.height
         #self.tile_w, self.tile_h = tmx_data.tilewidth, tmx_data.tileheight
 
-        self.screen = pygame.display.set_mode((self.map_w * TILE_X, self.map_h * TILE_Y))
+        self.screen = pygame.display.set_mode((self.map_w * TILE, self.map_h * TILE))
 
         for x in range(self.map_w):
             for y in range(self.map_h):
@@ -192,35 +248,52 @@ class Control:
     def loop(self):
 
         bomberman = self.sheet[9] # Whatever, load the good tile someday
-        player = Player(Vector2(2 * 32, 3 * 32), Vector2(0, 0), bomberman)
+        self.player = Player(bomberman, Vector2(2, 3), 0)
 
-        self.players.add(player)
+        self.players.add(self.player)
         speed = .1
 
         while self.running:
             delta_t = self.clock.tick(FRAME_RATE)
-            player.current_input = None
+            #player.current_input = None
 
             # event handling
+            pygame.event.pump()
+            keys = pygame.key.get_pressed()
+
             for ev in pygame.event.get():
                 if ev.type == QUIT:
                     self.running = 0
-                elif ev.type == KEYDOWN and ev.key == K_ESCAPE:
-                    self.running = 0
-                elif ev.type == KEYDOWN and ev.key in PLAYER_CONTROLLER['UP']:
-                    player.velocity = Vector2(0, -speed)
-                    player.direction = Direction.UP
-                elif ev.type == KEYDOWN and ev.key in PLAYER_CONTROLLER['DOWN']:
-                    player.velocity = Vector2(0, speed)
-                    player.direction = Direction.DOWN
-                elif ev.type == KEYDOWN and ev.key in PLAYER_CONTROLLER['RIGHT']:
-                    player.velocity = Vector2(speed, 0)
-                    player.direction = Direction.RIGHT
-                elif ev.type == KEYDOWN and ev.key in PLAYER_CONTROLLER['LEFT']:
-                    player.velocity = Vector2(-speed, 0)
-                    player.direction = Direction.LEFT
-                elif ev.type == KEYDOWN and ev.key in PLAYER_CONTROLLER['PLANT_BOMB']:
-                    player.plant_bomb(self.sheet[8])
+                elif ev.type == KEYDOWN:
+                    if ev.key == K_ESCAPE:
+                        self.running = 0
+                    elif ev.key == CONTROLS[CTRL_BOMB]:
+                        self.player.input_bomb = 1
+                    else:
+                        for i in range(4):
+                            if ev.key == CONTROLS[i]:
+                                self.player.ori = i
+                                self.player.input_last[i & 1] = 1 - (i & 2)
+                                self.player.input_press[i & 1] = 1
+                elif ev.type == KEYUP:
+                    for i in (CTRL_LEFT, CTRL_RIGHT, CTRL_UP, CTRL_DOWN):
+                        if ev.key == CONTROLS[i] and self.player.input_last[i & 1] == (1 - (i & 2)):
+                            self.player.input_press[i & 1] = 0
+
+#                elif ev.type == KEYDOWN and ev.key in PLAYER_CONTROLLER['UP']:
+#                    player.velocity = Vector2(0, -speed)
+#                    player.direction = Direction.UP
+#                elif ev.type == KEYDOWN and ev.key in PLAYER_CONTROLLER['DOWN']:
+#                    player.velocity = Vector2(0, speed)
+#                    player.direction = Direction.DOWN
+#                elif ev.type == KEYDOWN and ev.key in PLAYER_CONTROLLER['RIGHT']:
+#                    player.velocity = Vector2(speed, 0)
+#                    player.direction = Direction.RIGHT
+#                elif ev.type == KEYDOWN and ev.key in PLAYER_CONTROLLER['LEFT']:
+#                    player.velocity = Vector2(-speed, 0)
+#                    player.direction = Direction.LEFT
+#                elif ev.type == KEYDOWN and ev.key in PLAYER_CONTROLLER['PLANT_BOMB']:
+#                    player.plant_bomb(self.sheet[8])
 
 
             # state update
