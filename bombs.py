@@ -1,14 +1,18 @@
 import pygame
-from pygame.maths import Vector2
+from pygame import Vector2
 from utils import Direction
-
-global CONTROL
-global TILE
+from control import CONTROL
 
 BOMB_TIMER = 5 # seconds
 BLAST_TIMER = 2 # seconds
 BLAST_PROPAGATION_TIMER = .2 # seconds
 BLAST_RADIUS = 2
+
+# Useful when we'll have directional explosion
+BLAST_SHEET = {
+    "CENTER"    : CONTROL.sheet[18],
+    "NOT_CENTER": CONTROL.sheet[17]
+}
 
 class Bomb(pygame.sprite.Sprite):
     def __init__(self, position, image):
@@ -52,8 +56,12 @@ class Blast(pygame.sprite.Sprite):
         self.radius = radius
     
     def load_image(self):
-        """ Chooses the right sprite for the blast """
-        pass
+        """ Return the right sprite for the blast """
+        if self.center:
+            return BLAST_SHEET["CENTER"]
+        else:
+            return BLAST_SHEET["NOT_CENTER"]
+        
 
     def propagate(self):
         new_radius = self.radius - 1
