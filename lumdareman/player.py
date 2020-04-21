@@ -10,14 +10,22 @@ TURN_SLACK = TILE_SIDE / 5
 START_LIFES = 4
 START_BOMBS = 5
 START_POWER = 4
-START_SPEED = 6 * TILE_SIDE / 1000  # tile/ms
+START_SPEED = 4 * TILE_SIDE / 1000  # tile/ms
 
 
 class make_player(pygame.sprite.DirtySprite):
     def __init__(self, pos_tile, ori):
         super().__init__()
 
-        self.image = SHEET[9]
+        image = SHEET[9]
+        self._images = [
+            pygame.transform.flip(image, True, False),
+            pygame.transform.rotate(image, 90),
+            image,
+            pygame.transform.rotate(image, -90)
+        ]
+        self.image = self._images[ori]
+
         self.rect = self.image.get_rect()
         self.rect.x = TILE_SIDE * pos_tile[0]
         self.rect.y = TILE_SIDE * pos_tile[1]
@@ -54,6 +62,7 @@ class make_player(pygame.sprite.DirtySprite):
                 for i in range(4):
                     if ev.key == self.controls[i]:
                         self.ori = i
+                        self.image = self._images[i]
                         self.input_last[i & 1] = 1 - (i & 2)
                         self.input_press[i & 1] = 1
         elif ev.type == KEYUP:
