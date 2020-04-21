@@ -3,11 +3,6 @@ from pygame import Vector2
 
 from lumdareman.game import CONTROL
 
-BOMB_TIMER = 5 # seconds
-BLAST_TIMER = 2 # seconds
-BLAST_PROPAGATION_TIMER = .2 # seconds
-BLAST_RADIUS = 2
-
 # Useful when we'll have directional explosion
 BLAST_SHEET = {
     "CENTER"    : CONTROL.sheet[18],

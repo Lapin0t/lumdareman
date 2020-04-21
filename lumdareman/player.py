@@ -1,37 +1,70 @@
 import pygame
+from pygame.locals import KEYUP, KEYDOWN
 from pygame import Vector2
 
+import lumdareman
 from lumdareman.data import *
-from lumdareman.game import *
 
 
-class Player(pygame.sprite.Sprite):
-    def __init__(self, image, pos_tile, ori):
-        pygame.sprite.Sprite.__init__(self)
+TURN_SLACK = TILE_SIDE / 5
+START_LIFES = 4
+START_BOMBS = 5
+START_POWER = 4
+START_SPEED = 6 * TILE_SIDE / 1000  # tile/ms
 
-        # For rendering
-        self.image = image
+
+class make_player(pygame.sprite.DirtySprite):
+    def __init__(self, pos_tile, ori):
+        super().__init__()
+
+        self.image = SHEET[9]
         self.rect = self.image.get_rect()
-        self.rect.x = TILE * pos_tile.x
-        self.rect.y = TILE * pos_tile.y
+        self.rect.x = TILE_SIDE * pos_tile[0]
+        self.rect.y = TILE_SIDE * pos_tile[1]
+        self.dirty = 2  # always repaint
+        self.layer = LAYER_PLAYER
 
-        self.pos_tile = pos_tile
-        self.pos_frac = Vector2(0., 0.)
-
-        # Player logic
         self.ori = ori
+        self.pos_tile = pos_tile
+        self.pos_frac = (0., 0.)
 
         self.input_press = [0, 0]  # off/on  (0/1) on axis (x, y)
         self.input_last = [1, 1]   # fwd/bwd (1/-1) on axis (x, y)
         self.input_last[ori & 1] = 1 - (ori & 2)
-        self.input_last_ax = ori & 1
         self.input_bomb = 0
+
+        self.speed = START_SPEED
+
+        # for fast access
+        self.map = lumdareman.game.GAME['level']['blocks']
+        self.controls = CONFIG['controls']
+
+        lumdareman.game.GAME['player'] = self
+        lumdareman.game.GAME['sprites'].add(self)
 
         #self.life = PLAYER_MAX_LIFE
         #self.bombs = PLAYER_MAX_BOMBS
         #self.direction = Direction.UP # Needed to plant bomb in the right direction
 
+    def input(self, ev):
+        if ev.type == KEYDOWN:
+            if ev.key == self.controls[BOMB]:
+                self.input_bomb = 1
+            else:
+                for i in range(4):
+                    if ev.key == self.controls[i]:
+                        self.ori = i
+                        self.input_last[i & 1] = 1 - (i & 2)
+                        self.input_press[i & 1] = 1
+        elif ev.type == KEYUP:
+            for i in range(4):
+                if ev.key == self.controls[i] and self.input_last[i & 1] == (1 - (i & 2)):
+                    self.input_press[i & 1] = 0
+
     def update(self, delta_t):
+        self.move(delta_t)
+
+    def move(self, delta_t):
         l0, l1 = self.input_last
         f0, f1 = self.pos_frac
         t0, t1 = self.pos_tile
@@ -40,44 +73,41 @@ class Player(pygame.sprite.Sprite):
         g0 = f0 * l0
         g1 = f1 * l1
 
-        incr = delta_t * PLAYER_SPEED
+        incr = delta_t * self.speed
 
         # collision check flags
         do_coll0 = False
         do_coll1 = False
 
-        ## right/left
-        if self.input_press[0]:  # move in input dir
+        if self.input_press[0]:    # move in input dir
             d0 = l0
             do_coll0 = g0 >= 0
         else:
-            if g0 < 0:         # move towards middle
+            if g0 < 0:             # move towards middle
                 d0 = l0
-            elif g0 < TILE/5:  # move towards middle
+            elif g0 < TURN_SLACK:  # move towards middle
                 d0 = -l0
-            else:              # continue last move
+            else:                  # continue last move
                 d0 = l0
                 do_coll0 = True
 
-        ## down/up
-        if self.input_press[1]:  # move in input dir
+        if self.input_press[1]:
             d1 = l1
             do_coll1 = g1 >= 0
         else:
-            if g1 < 0:         # move towards middle
+            if g1 < 0:
                 d1 = l1
-            elif g1 < TILE/5:  # move towards middle
+            elif g1 < TURN_SLACK:
                 d1 = -l1
-            else:              # continue last move
+            else:
                 d1 = l1
                 do_coll1 = True
 
         if do_coll0:
             if do_coll1:
                 # double input collision
-                c1 = (CONTROL.map[(t0 + d0, t1     )].blocking,
-                      CONTROL.map[(t0     , t1 + d1)].blocking)
-                c2 = CONTROL.map[(t0 + d0, t1 + d1)].blocking
+                c1 = (self.map[t0 + d0][t1].blocking, self.map[t0][t1 + d1].blocking)
+                c2 = self.map[t0 + d0][t1 + d1].blocking
                 g = [g0, g1]
                 a0 = self.ori & 1  # prefered axis
                 a1 = (a0 + 1) & 1
@@ -99,7 +129,7 @@ class Player(pygame.sprite.Sprite):
                 g0, g1 = g
             else:
                 # right/left collision
-                if CONTROL.map[(t0 + d0, t1)].blocking:
+                if self.map[t0 + d0][t1].blocking:
                     g0 = max(0., g0 - incr)
                 else:
                     g0 = g0 + incr
@@ -107,7 +137,7 @@ class Player(pygame.sprite.Sprite):
         else:
             if do_coll1:
                 # down/up collision
-                if CONTROL.map[(t0, t1 + d1)].blocking:
+                if self.map[t0][t1 + d1].blocking:
                     g1 = max(0., g1 - incr)
                 else:
                     g1 = g1 + incr
@@ -117,11 +147,11 @@ class Player(pygame.sprite.Sprite):
                 g0 = min(0., g0 + incr)
                 g1 = min(0., g1 + incr)
 
-        if g0 > TILE/2:
-            g0 -= TILE
+        if g0 > TILE_HALF:
+            g0 -= TILE_SIDE
             t0 += d0
-        if g1 > TILE/2:
-            g1 -= TILE
+        if g1 > TILE_HALF:
+            g1 -= TILE_SIDE
             t1 += d1
 
         f0 = g0 * d0
@@ -129,45 +159,20 @@ class Player(pygame.sprite.Sprite):
         self.pos_frac = (f0, f1)
         self.pos_tile = (t0, t1)
 
-        self.rect.x = int(TILE * t0 + f0)
-        self.rect.y = int(TILE * t1 + f1)
-
-    def _update_ax(self, delta_t, ax):
-        last = self.input_last[ax]
-        frac = self.pos_frac[ax]
-        tile = self.pos_tile[ax]
-        if self.input_press[ax]:
-            d = last
-        else:
-            if abs(frac) < 4:
-                return frac/2, tile
-            d = -last if 0 <= self.pos_frac[ax] * last < TILE/5 else last
-        incr = delta_t * PLAYER_SPEED
-        f1 = d * frac + incr
-        if ax == 0:
-            blk = CONTROL.map[(tile + d, self.pos_tile[1])].blocking
-        else:
-            blk = CONTROL.map[(self.pos_tile[0], tile + d)].blocking
-        if f1 > 0 and blk:
-            f1 = max(0., d * frac - incr)
-        elif f1 > TILE/2:
-            f1 -= TILE
-            tile += d
-        return d * f1, tile
-
-
+        self.rect.x = int(TILE_SIDE * t0 + f0)
+        self.rect.y = int(TILE_SIDE * t1 + f1)
 
     def plant_bomb(self, image):
-        dx = Vector2(TILE, 0)
-        dy = Vector2(0, TILE)
+        dx = Vector2(TILE_SIDE, 0)
+        dy = Vector2(0, TILE_SIDE)
 
-        if self.ori == CTRL_UP:
+        if self.ori == UP:
             bomb = Bomb(self.position - dy, image)
-        elif self.ori == CTRL_DOWN:
+        elif self.ori == DOWN:
             bomb = Bomb(self.position + dy, image)
-        elif self.ori == CTRL_LEFT:
+        elif self.ori == LEFT:
             bomb = Bomb(self.position - dx, image)
-        elif self.ori == CTRL_RIGHT:
+        elif self.ori == RIGHT:
             bomb = Bomb(self.position + dx, image)
 
         if not pygame.sprite.spritecollide(bomb, CONTROL.solid_blocks, False):

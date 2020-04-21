@@ -1,19 +1,7 @@
 #!/usr/bin/env python
 
-import pygame
+import lumdareman.game
 
-from pygame.locals import *
-
-from lumdareman.game import CONTROL
-
-
-if not pygame.font: print('Warning, fonts disabled')
-if not pygame.mixer: print('Warning, sound disabled')
-
-
-
-if __name__ == '__main__':
-    pygame.init()
-    CONTROL.load_level('assets/empty.tmx')
-    CONTROL.loop()
-    pygame.quit()
+lumdareman.game.load_level('empty.json')
+lumdareman.game.main_loop()
+lumdareman.game.quit()
