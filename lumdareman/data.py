@@ -29,7 +29,7 @@ def get_map_data(tm_file):
             tm_data = json.load(s)
 
         w, h = tm_data['width'], tm_data['height']
-        title = tm_data.get('properties', {}).get('title', '')
+        info = {p['name']: p['value'] for p in tm_data.get('properties', [])}
 
         if len(tm_data.get('layers', [])) != 1:
             raise ValueError('%s is not a valid map' % tm_path)
@@ -40,7 +40,7 @@ def get_map_data(tm_file):
 
         _MAP_DATA[tm_file] = {
             'size': (w, h),
-            'title': title,
+            'info': info,
             'data': map_data
         }
     return _MAP_DATA[tm_file]
@@ -86,5 +86,7 @@ BLAST_TIMER = 2 # seconds
 BLAST_PROPAGATION_TIMER = .2 # seconds
 BLAST_RADIUS = 2
 
-SHEET = make_sheet(pygame.image.load('assets/tileset_classic.png'), (TILE_SIDE, TILE_SIDE), (8, 8))
+SHEET = make_sheet(pygame.image.load('assets/tileset_classic.png'),
+                   (TILE_SIDE, TILE_SIDE), (8, 8))
 
+TILE_WALL, TILE_BRICK, TILE_GRASS, TILE_GRASS_SH1, TILE_GRASS = range(5)

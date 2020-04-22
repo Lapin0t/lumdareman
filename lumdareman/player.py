@@ -1,8 +1,10 @@
+from enum import IntEnum as enum
+
 import pygame
 from pygame.locals import KEYUP, KEYDOWN
 from pygame import Vector2
 
-import lumdareman
+from lumdareman import game
 from lumdareman.data import *
 
 
@@ -12,11 +14,15 @@ START_BOMBS = 5
 START_POWER = 4
 START_SPEED = 4 * TILE_SIDE / 1000  # tile/ms
 
+CTRL = enum('CTRL', ('RIGHT', 'DOWN', 'LEFT', 'UP', 'BOMB'))
+AXIS = enum('AXIS', ('HORI', 'VERT'))
+
 
 class make_player(pygame.sprite.DirtySprite):
     def __init__(self, pos_tile, ori):
         super().__init__()
 
+        # rendering state
         image = SHEET[9]
         self._images = [
             pygame.transform.flip(image, True, False),
@@ -32,43 +38,50 @@ class make_player(pygame.sprite.DirtySprite):
         self.dirty = 2  # always repaint
         self.layer = LAYER_PLAYER
 
+        # position state
         self.ori = ori
         self.pos_tile = pos_tile
         self.pos_frac = (0., 0.)
 
+        # input state
         self.input_press = [0, 0]  # off/on  (0/1) on axis (x, y)
         self.input_last = [1, 1]   # fwd/bwd (1/-1) on axis (x, y)
         self.input_last[ori & 1] = 1 - (ori & 2)
         self.input_bomb = 0
 
+        # item state
         self.speed = START_SPEED
 
         # for fast access
-        self.map = lumdareman.game.GAME['level']['blocks']
-        self.controls = CONFIG['controls']
+        self.map = game.GAME['level']['blocks']
 
-        lumdareman.game.GAME['player'] = self
-        lumdareman.game.GAME['sprites'].add(self)
+        # register globally
+        #game.GAME['player'] = self   # TODO is this needed?
+        game.GAME['sprites'].add(self)
+        self.register_controls()
 
-        #self.life = PLAYER_MAX_LIFE
-        #self.bombs = PLAYER_MAX_BOMBS
-        #self.direction = Direction.UP # Needed to plant bomb in the right direction
+    def register_controls(self):
+        keys = CONFIG['controls']
+        game.GAME['act_keydown'][keys[CTRL.RIGHT]] = self.make_keydown(CTRL.RIGHT)
+        for i in range(4):
+            game.GAME['act_keydown'][keys[i]] = self.make_keydown(i)
+            game.GAME['act_keyup'][keys[i]] = self.make_keyup(i)
 
-    def input(self, ev):
-        if ev.type == KEYDOWN:
-            if ev.key == self.controls[BOMB]:
-                self.input_bomb = 1
-            else:
-                for i in range(4):
-                    if ev.key == self.controls[i]:
-                        self.ori = i
-                        self.image = self._images[i]
-                        self.input_last[i & 1] = 1 - (i & 2)
-                        self.input_press[i & 1] = 1
-        elif ev.type == KEYUP:
-            for i in range(4):
-                if ev.key == self.controls[i] and self.input_last[i & 1] == (1 - (i & 2)):
-                    self.input_press[i & 1] = 0
+    def make_keydown(self, d):
+        ax = d & 1
+        mul = 1 - (d & 2)
+        def act():
+            self.ori = d
+            self.input_last[ax] = mul
+            self.input_press[ax] = 1
+        return act
+
+    def make_keyup(self, d):
+        ax = d & 1
+        mul = 1 - (d & 2)
+        def act():
+            if self.input_last[ax] == mul:
+                self.input_press[ax] = 0
 
     def update(self, delta_t):
         self.move(delta_t)
