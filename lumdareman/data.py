@@ -1,5 +1,6 @@
 import array, base64, configparser, json, os
 import pygame
+import pygame.locals
 import lumdareman
 
 

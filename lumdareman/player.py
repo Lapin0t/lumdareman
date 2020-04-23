@@ -8,7 +8,8 @@ from lumdareman import game
 from lumdareman.data import *
 
 
-TURN_SLACK = TILE_SIDE / 5
+#TURN_SLACK = TILE_SIDE / 5
+TURN_SLACK = 2
 START_LIFES = 4
 START_BOMBS = 5
 START_POWER = 4
@@ -62,10 +63,9 @@ class make_player(pygame.sprite.DirtySprite):
 
     def register_controls(self):
         keys = CONFIG['controls']
-        game.GAME['act_keydown'][keys[CTRL.RIGHT]] = self.make_keydown(CTRL.RIGHT)
         for i in range(4):
-            game.GAME['act_keydown'][keys[i]] = self.make_keydown(i)
             game.GAME['act_keyup'][keys[i]] = self.make_keyup(i)
+            game.GAME['act_keydown'][keys[i]] = self.make_keydown(i)
 
     def make_keydown(self, d):
         ax = d & 1
@@ -82,6 +82,7 @@ class make_player(pygame.sprite.DirtySprite):
         def act():
             if self.input_last[ax] == mul:
                 self.input_press[ax] = 0
+        return act
 
     def update(self, delta_t):
         self.move(delta_t)
@@ -94,8 +95,6 @@ class make_player(pygame.sprite.DirtySprite):
         # rectified frac (positive == dir of movement)
         g0 = f0 * l0
         g1 = f1 * l1
-
-        incr = delta_t * self.speed
 
         # collision check flags
         do_coll0 = False
@@ -112,6 +111,7 @@ class make_player(pygame.sprite.DirtySprite):
             else:                  # continue last move
                 d0 = l0
                 do_coll0 = True
+                #do_coll0 = True
 
         if self.input_press[1]:
             d1 = l1
@@ -124,6 +124,9 @@ class make_player(pygame.sprite.DirtySprite):
             else:
                 d1 = l1
                 do_coll1 = True
+                #do_coll1 = True
+
+        incr = delta_t * self.speed
 
         if do_coll0:
             if do_coll1:
